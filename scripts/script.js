@@ -2,6 +2,8 @@ let yourDeck = [];
 let dealerDeck = [];
 let yourPoint = 0;
 let dealerPoint = 0;
+let inGame = false;//旗桿 來判定遊戲是否進行中
+let winner = 0;//0: 未定 1: 玩家贏 2: 莊家贏 3:平手
 
 $(document).ready(function(){
   initCards();
@@ -12,25 +14,40 @@ function initCards() {
   $('.card div').html('☠') //jQuery也可以把集合轉換
 };
 
-function newGame(){
-  let deck = shuffle(builtDeck())
-  yourDeck.push(deal(deck));
-  dealerDeck.push(deal(deck));
-  yourDeck.push(deal(deck));
-  console.log(yourDeck)
-  renderGameTable()
-}
-
-function deal(deck){
-  return deck.shift();
-}
-
 function initButton(){
   $('#action-new-game').click((evt) =>{
     evt.preventDefault();
     newGame()
   });
+
+  $('#action-hit').click((evt) =>{
+    evt.preventDefault();
+    yourDeck.push(deal());
+    renderGameTable();
+  });
+
+  $('#action-stand').click((evt) =>{
+    evt.preventDefault();
+    dealerDeck.push(deal());
+    dealerRound();
+  });
 };
+
+function newGame(){
+  resetGame();
+  initCards();
+  deck = shuffle(builtDeck())
+  yourDeck.push(deal());
+  dealerDeck.push(deal());
+  yourDeck.push(deal());
+  inGame = true;
+
+  renderGameTable()
+}
+
+function deal(){
+  return deck.shift();
+}
 
 function builtDeck(){
   let deck = [];
@@ -109,19 +126,43 @@ function renderGameTable(){
     theCard.prev().html(card.suit)
   });
   //算牌值
-  yourPoint += calcCardPoint(yourDeck);
-  dealerPoint += calcCardPoint(dealerDeck);
+  yourPoint = calcCardPoint(yourDeck);
+  dealerPoint = calcCardPoint(dealerDeck);
   
   $('.your-cards h1').html(`你: ${yourPoint} 點`)
   $('.dealer-cards h1').html(`莊家: ${dealerPoint} 點`)
+
+  if (yourPoint>=21||dealerPoint>=21){
+    inGame = false;
+  }
+  if (yourPoint< 21 && yourDeck.length === 5){
+    inGame = false;
+  }
+  //輸贏
+
+  checkWinner()
+  showStamp();
+  //按鈕
+  //jQuery attr改變屬性用法
+  $('#action-hit').attr('disabled', !inGame);
+  $('#action-stand').attr('disabled', !inGame);
+
 };
 
 function calcCardPoint(deck) {
   let point = 0;
 
-  deck.forEach(card =>{
+  deck.forEach((card) =>{
     point += card.cardPoint();
   });
+
+  if (point>21){
+    deck.forEach((card) =>{
+      if(card.cardNumber() === 'A'){
+        point -= 10;
+      };
+    });
+  }
   return point;
 };
 
@@ -143,4 +184,85 @@ function shuffle(array) {
   }
 
   return array;
+}
+
+function resetGame() {
+  deck = [];
+  yourDeck = [];
+  dealerDeck = [];
+  yourPoint = 0;
+  dealerPoint = 0;
+  winner = 0;
+  removeStamp()
+}
+
+function  dealerRound() {
+  while(true){
+    dealerPoint = calcCardPoint(dealerDeck);
+
+    if (dealerPoint<yourPoint){
+      dealerDeck.push(deal());
+    } else {
+      break;
+    }
+  
+    inGame = false;
+    renderGameTable();
+  }
+};
+
+function removeStamp(){
+  $('.dealer-cards').removeClass('win');
+  $('.your-cards').removeClass('win');
+};
+
+function showStamp(){
+  switch (winner) {
+    case 1:
+      $('.your-cards').addClass('win');
+      break;
+
+    case 2:
+      $('.dealer-cards').addClass('win');
+      break;
+
+    case 3:
+      // $('.dealer-cards').addClass('tie');
+      // $('.your-cards').addClass('tie');
+      break;
+
+    default: 
+      break;
+  }
+}
+
+function checkWinner(){
+  switch (true) { 
+    case yourPoint === 21:
+      winner = 1;
+      break
+
+    case yourPoint > 21:
+      winner = 2;
+      break;
+
+    case dealerPoint > 21:
+      winner = 1;
+      break
+
+    case yourPoint < 21 && yourDeck.length === 5:
+      winner = 1;
+      break
+
+    case dealerPoint > yourPoint:
+      winner = 2;
+      break;
+
+    case yourPoint === dealerPoint:
+      winner = 3;
+      break
+
+    default:
+      winner = 0;
+  };
 }
